@@ -9,10 +9,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY app/ app/
 COPY static/ static/
-COPY data/radar_history/ data/radar_history/
 
-# Create data directory for submissions
-RUN mkdir -p data
+# Create data directories for runtime
+# - radar_history: fetched from GitHub on first startup if not present
+# - submissions.json: created on first submission
+RUN mkdir -p data/radar_history
 
 EXPOSE 8000
 

@@ -7,8 +7,13 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+from filelock import FileLock
+
 from app.config import DATA_DIR, SUBMISSIONS_FILE
 from app.models import BlipSubmission
+
+# Lock file for concurrent access protection
+_LOCK_FILE = SUBMISSIONS_FILE.with_suffix(".lock")
 
 
 def _ensure_file() -> None:
@@ -28,21 +33,28 @@ def load_submissions() -> list[dict]:
 def save_submission(blip: BlipSubmission, session_id: str) -> dict:
     """Append a blip submission to the JSON file.
 
+    Uses file locking to prevent race conditions with concurrent writes.
     Returns the saved record (with id and timestamp).
     """
     _ensure_file()
-    submissions = load_submissions()
 
     record = blip.model_dump(exclude_none=True)
     record["id"] = str(uuid.uuid4())
     record["session_id"] = session_id
     record["timestamp"] = datetime.now(timezone.utc).isoformat()
 
-    submissions.append(record)
+    # Use file lock to prevent concurrent write race conditions
+    lock = FileLock(_LOCK_FILE, timeout=10)
+    with lock:
+        # Read current submissions inside the lock
+        content = SUBMISSIONS_FILE.read_text(encoding="utf-8")
+        submissions = json.loads(content)
 
-    # Atomic-ish write via temp file
-    tmp = SUBMISSIONS_FILE.with_suffix(".tmp")
-    tmp.write_text(json.dumps(submissions, indent=2), encoding="utf-8")
-    tmp.replace(SUBMISSIONS_FILE)
+        submissions.append(record)
+
+        # Atomic write via temp file
+        tmp = SUBMISSIONS_FILE.with_suffix(".tmp")
+        tmp.write_text(json.dumps(submissions, indent=2), encoding="utf-8")
+        tmp.replace(SUBMISSIONS_FILE)
 
     return record

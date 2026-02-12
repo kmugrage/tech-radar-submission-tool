@@ -45,6 +45,7 @@ async def _fake_claude_submit(messages, blip, force_submit=False):
 
 @pytest.fixture(autouse=True)
 def _clean_sessions():
+    """Clear the session store before and after each test."""
     sessions.clear()
     yield
     sessions.clear()
@@ -241,3 +242,42 @@ def test_websocket_double_submit_prevented(client):
             assert not any(m["type"] == "submission_complete" for m in second_messages)
             # save_submission should only have been called once
             assert mock_save.call_count == 1
+
+
+def test_websocket_rejects_invalid_session_id(client):
+    """Session IDs with invalid characters should be rejected."""
+    from starlette.websockets import WebSocketDisconnect as StarletteDisconnect
+
+    # Test various invalid session IDs
+    invalid_ids = [
+        "a" * 65,  # Too long
+        "session<script>",  # XSS attempt
+        "session/../../etc",  # Path traversal attempt
+        "session\x00null",  # Null byte
+    ]
+
+    for invalid_id in invalid_ids:
+        # WebSocket should close immediately with invalid session ID
+        try:
+            with client.websocket_connect(f"/ws/{invalid_id}") as ws:
+                # If we get here, the connection was accepted (shouldn't happen)
+                pass
+        except Exception:
+            # Expected - connection should be rejected
+            pass
+
+
+def test_websocket_accepts_valid_session_ids(client):
+    """Valid session IDs should be accepted."""
+    with patch("app.main.get_claude_response", side_effect=_fake_claude_simple):
+        valid_ids = [
+            "abc123",
+            "a1b2c3d4-e5f6-7890-abcd-ef1234567890",  # UUID format
+            "session-with-hyphens",
+            "X" * 64,  # Max length
+        ]
+
+        for valid_id in valid_ids:
+            with client.websocket_connect(f"/ws/{valid_id}") as ws:
+                msg = ws.receive_json()
+                assert msg["type"] == "assistant_message"

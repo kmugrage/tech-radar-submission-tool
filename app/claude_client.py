@@ -246,12 +246,16 @@ async def get_claude_response(
         if collected_text:
             assistant_content.append({"type": "text", "text": collected_text})
         for tu in tool_uses:
+            try:
+                tool_input = json.loads(tu["input_json"]) if tu["input_json"] else {}
+            except json.JSONDecodeError:
+                tool_input = {}
             assistant_content.append(
                 {
                     "type": "tool_use",
                     "id": tu["id"],
                     "name": tu["name"],
-                    "input": json.loads(tu["input_json"]) if tu["input_json"] else {},
+                    "input": tool_input,
                 }
             )
 
@@ -260,7 +264,10 @@ async def get_claude_response(
         # Build tool results
         tool_results = []
         for tu in tool_uses:
-            tool_input = json.loads(tu["input_json"]) if tu["input_json"] else {}
+            try:
+                tool_input = json.loads(tu["input_json"]) if tu["input_json"] else {}
+            except json.JSONDecodeError:
+                tool_input = {}
 
             if tu["name"] == "check_radar_history":
                 result = _handle_check_history(tool_input.get("name", ""))

@@ -3,8 +3,13 @@
 from __future__ import annotations
 
 import logging
+import re
+import time
+from collections import OrderedDict
+from contextlib import asynccontextmanager
+from typing import AsyncIterator
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
@@ -22,16 +27,103 @@ else:
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="TW Tech Radar Blip Submission Tool")
+# Session configuration
+MAX_SESSIONS = 1000  # Maximum number of concurrent sessions
+SESSION_TTL_SECONDS = 3600  # Sessions expire after 1 hour of inactivity
+
+# Valid session ID pattern: UUID format or alphanumeric with hyphens (max 64 chars)
+SESSION_ID_PATTERN = re.compile(r"^[a-zA-Z0-9\-]{1,64}$")
+
+
+def _validate_session_id(session_id: str) -> bool:
+    """Validate that a session ID is safe and well-formed."""
+    return bool(SESSION_ID_PATTERN.match(session_id))
+
+
+class SessionStore:
+    """Thread-safe session store with TTL and max size limits."""
+
+    def __init__(self, max_sessions: int = MAX_SESSIONS, ttl_seconds: int = SESSION_TTL_SECONDS):
+        self._sessions: OrderedDict[str, tuple[ConversationSession, float]] = OrderedDict()
+        self._max_sessions = max_sessions
+        self._ttl_seconds = ttl_seconds
+
+    def get(self, session_id: str) -> ConversationSession | None:
+        """Get a session, updating its last-accessed time."""
+        if session_id not in self._sessions:
+            return None
+        session, _ = self._sessions[session_id]
+        # Update access time and move to end (most recently used)
+        self._sessions[session_id] = (session, time.time())
+        self._sessions.move_to_end(session_id)
+        return session
+
+    def create(self, session_id: str) -> ConversationSession:
+        """Create a new session, evicting old ones if necessary."""
+        self._cleanup_expired()
+        # Evict oldest sessions if at capacity
+        while len(self._sessions) >= self._max_sessions:
+            oldest_key = next(iter(self._sessions))
+            del self._sessions[oldest_key]
+            logger.info("Evicted session %s due to capacity limit", oldest_key)
+
+        session = ConversationSession(session_id)
+        self._sessions[session_id] = (session, time.time())
+        return session
+
+    def get_or_create(self, session_id: str) -> ConversationSession:
+        """Get existing session or create a new one."""
+        session = self.get(session_id)
+        if session is None:
+            session = self.create(session_id)
+        return session
+
+    def _cleanup_expired(self) -> None:
+        """Remove sessions that have exceeded TTL."""
+        now = time.time()
+        expired = [
+            sid for sid, (_, last_access) in self._sessions.items()
+            if now - last_access > self._ttl_seconds
+        ]
+        for sid in expired:
+            del self._sessions[sid]
+            logger.info("Expired session %s due to inactivity", sid)
+
+    def clear(self) -> None:
+        """Clear all sessions (for testing)."""
+        self._sessions.clear()
+
+    def __contains__(self, session_id: str) -> bool:
+        return session_id in self._sessions
+
+
+# Global session store
+sessions = SessionStore()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Application lifespan handler for startup/shutdown events."""
+    # Startup
+    try:
+        count = len(load_history())
+        logger.info("Loaded %d historical radar blips", count)
+    except Exception:
+        logger.warning(
+            "Could not load radar history - duplicate detection will be unavailable",
+            exc_info=True,
+        )
+    yield
+    # Shutdown (nothing to clean up currently)
+
+
+app = FastAPI(title="TW Tech Radar Blip Submission Tool", lifespan=lifespan)
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
-# In-memory session store
-sessions: dict[str, ConversationSession] = {}
-
 _DEV_BANNER = (
-    "[DEV MODE — using mock responses, no API key needed]\n\n"
+    "[DEV MODE - using mock responses, no API key needed]\n\n"
     if DEV_MODE
     else ""
 )
@@ -41,23 +133,10 @@ WELCOME_MESSAGE = (
     "Welcome to the Technology Radar blip submission tool! I'll help you "
     "craft a strong submission for the next radar edition.\n\n"
     "To get started, tell me about the technology or technique you'd like "
-    "to submit. You can include as much or as little detail as you'd like — "
+    "to submit. You can include as much or as little detail as you'd like - "
     "I'll ask follow-up questions to help strengthen your submission.\n\n"
     "You can click **Submit Blip** at any time to finalize your submission."
 )
-
-
-@app.on_event("startup")
-async def startup() -> None:
-    """Pre-load radar history on startup."""
-    try:
-        count = len(load_history())
-        logger.info("Loaded %d historical radar blips", count)
-    except Exception:
-        logger.warning(
-            "Could not load radar history — duplicate detection will be unavailable",
-            exc_info=True,
-        )
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -68,11 +147,14 @@ async def root() -> HTMLResponse:
 
 @app.websocket("/ws/{session_id}")
 async def websocket_endpoint(websocket: WebSocket, session_id: str) -> None:
+    # Validate session ID format before accepting connection
+    if not _validate_session_id(session_id):
+        await websocket.close(code=4000, reason="Invalid session ID format")
+        return
+
     await websocket.accept()
 
-    if session_id not in sessions:
-        sessions[session_id] = ConversationSession(session_id)
-    session = sessions[session_id]
+    session = sessions.get_or_create(session_id)
 
     # Send welcome
     await websocket.send_json(
