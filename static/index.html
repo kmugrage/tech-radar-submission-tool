@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TW Tech Radar — Blip Submission</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <h1>Technology Radar — Blip Submission</h1>
+    </header>
+
+    <main>
+        <section id="chat-panel">
+            <div id="messages"></div>
+            <div id="input-area">
+                <textarea
+                    id="message-input"
+                    placeholder="Describe the technology you'd like to submit..."
+                    rows="3"
+                ></textarea>
+                <div id="input-buttons">
+                    <button id="send-btn" onclick="sendMessage()">Send</button>
+                    <button id="submit-btn" onclick="submitBlip()">Submit Blip</button>
+                    <button id="reset-btn" onclick="resetSession()">New Submission</button>
+                </div>
+            </div>
+        </section>
+
+        <aside id="sidebar">
+            <div id="quality-section">
+                <h2>Submission Quality</h2>
+                <div class="meter">
+                    <label>Completeness</label>
+                    <div class="meter-bar">
+                        <div id="completeness-bar" class="meter-fill" style="width: 0%"></div>
+                    </div>
+                    <span id="completeness-value">0%</span>
+                </div>
+                <div class="meter">
+                    <label>Quality</label>
+                    <div class="meter-bar">
+                        <div id="quality-bar" class="meter-fill" style="width: 0%"></div>
+                    </div>
+                    <span id="quality-value">0%</span>
+                </div>
+            </div>
+
+            <div id="collected-section">
+                <h2>Collected Data</h2>
+                <div id="collected-data">
+                    <p class="empty-state">No data collected yet</p>
+                </div>
+            </div>
+
+            <div id="gaps-section">
+                <h2>What's Missing</h2>
+                <div id="missing-fields">
+                    <p class="empty-state">Start your submission to see guidance</p>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <div id="submission-banner" class="hidden">
+        <div id="submission-banner-content">
+            <strong>Blip submitted!</strong>
+            <span id="submission-score"></span>
+            <button onclick="closeBanner()">Dismiss</button>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

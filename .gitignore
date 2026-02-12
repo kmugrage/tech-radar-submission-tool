@@ -1,0 +1,11 @@
+.env
+__pycache__/
+*.pyc
+data/submissions.json
+data/radar_history/*.csv
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/

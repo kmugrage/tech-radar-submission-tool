@@ -1,0 +1,308 @@
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+:root {
+    --tw-green: #00a88e;
+    --tw-green-dark: #008871;
+    --tw-dark: #1a1a2e;
+    --tw-gray: #f4f4f5;
+    --tw-border: #e0e0e0;
+    --meter-red: #e53e3e;
+    --meter-yellow: #d69e2e;
+    --meter-green: #38a169;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+body {
+    font-family: var(--font);
+    background: var(--tw-gray);
+    color: #333;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+header {
+    background: var(--tw-dark);
+    color: white;
+    padding: 0.75rem 1.5rem;
+}
+
+header h1 {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+main {
+    display: flex;
+    overflow: hidden;
+    height: calc(100vh - 52px);
+}
+
+/* --- Chat Panel --- */
+
+#chat-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    height: 100%;
+}
+
+#messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.message {
+    max-width: 80%;
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.message.user {
+    align-self: flex-end;
+    background: var(--tw-green);
+    color: white;
+    border-bottom-right-radius: 0.25rem;
+}
+
+.message.assistant {
+    align-self: flex-start;
+    background: white;
+    border: 1px solid var(--tw-border);
+    border-bottom-left-radius: 0.25rem;
+}
+
+.message.assistant strong {
+    font-weight: 600;
+}
+
+/* --- Input Area --- */
+
+#input-area {
+    flex-shrink: 0;
+    padding: 0.75rem 1rem;
+    background: white;
+    border-top: 1px solid var(--tw-border);
+}
+
+#message-input {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--tw-border);
+    border-radius: 0.5rem;
+    font-family: var(--font);
+    font-size: 0.9rem;
+    resize: vertical;
+    outline: none;
+}
+
+#message-input:focus {
+    border-color: var(--tw-green);
+}
+
+#input-buttons {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+button {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 0.5rem;
+    font-family: var(--font);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+#send-btn {
+    background: var(--tw-green);
+    color: white;
+}
+
+#send-btn:hover {
+    background: var(--tw-green-dark);
+}
+
+#submit-btn {
+    background: var(--tw-dark);
+    color: white;
+}
+
+#submit-btn:hover {
+    background: #2a2a4e;
+}
+
+#reset-btn {
+    background: transparent;
+    color: #666;
+    border: 1px solid var(--tw-border);
+}
+
+#reset-btn:hover {
+    background: var(--tw-gray);
+}
+
+/* --- Sidebar --- */
+
+#sidebar {
+    width: 300px;
+    flex-shrink: 0;
+    background: white;
+    border-left: 1px solid var(--tw-border);
+    overflow-y: auto;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    height: 100%;
+}
+
+#sidebar h2 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #666;
+    margin-bottom: 0.5rem;
+}
+
+/* --- Quality Meters --- */
+
+.meter {
+    margin-bottom: 0.75rem;
+}
+
+.meter label {
+    display: block;
+    font-size: 0.8rem;
+    color: #555;
+    margin-bottom: 0.25rem;
+}
+
+.meter-bar {
+    height: 8px;
+    background: #e8e8e8;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.meter-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.4s ease, background 0.4s ease;
+    background: var(--meter-red);
+}
+
+.meter-fill.yellow {
+    background: var(--meter-yellow);
+}
+
+.meter-fill.green {
+    background: var(--meter-green);
+}
+
+.meter span {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #444;
+}
+
+/* --- Collected Data --- */
+
+#collected-data, #missing-fields {
+    font-size: 0.85rem;
+}
+
+.data-field {
+    padding: 0.35rem 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.data-field .field-label {
+    font-weight: 600;
+    color: #555;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.data-field .field-value {
+    color: #333;
+    margin-top: 0.1rem;
+    word-break: break-word;
+}
+
+.missing-item {
+    padding: 0.3rem 0;
+    color: #b45309;
+    font-size: 0.8rem;
+}
+
+.missing-item::before {
+    content: "\26A0 ";
+}
+
+.empty-state {
+    color: #999;
+    font-style: italic;
+    font-size: 0.8rem;
+}
+
+/* --- Submission Banner --- */
+
+#submission-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: var(--tw-green);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    z-index: 100;
+    text-align: center;
+}
+
+#submission-banner.hidden {
+    display: none;
+}
+
+#submission-banner button {
+    margin-left: 1rem;
+    background: rgba(255,255,255,0.2);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.4);
+}
+
+/* --- Responsive --- */
+
+@media (max-width: 768px) {
+    main {
+        flex-direction: column;
+    }
+
+    #sidebar {
+        width: 100%;
+        border-left: none;
+        border-top: 1px solid var(--tw-border);
+        max-height: 200px;
+    }
+
+    .message {
+        max-width: 95%;
+    }
+}
