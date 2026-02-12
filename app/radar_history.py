@@ -18,6 +18,7 @@ from pathlib import Path
 
 from app.config import RADAR_HISTORY_DIR
 from app.models import HistoricalBlip
+from app.sanitization import sanitize_external_data
 
 logger = logging.getLogger(__name__)
 
@@ -113,19 +114,23 @@ def _fetch_csv(filename: str) -> str:
 
 
 def _parse_csv(content: str, volume: str) -> list[HistoricalBlip]:
-    """Parse CSV content into HistoricalBlip objects."""
+    """Parse CSV content into HistoricalBlip objects.
+
+    External data is sanitized to prevent prompt injection attacks.
+    """
     reader = csv.DictReader(io.StringIO(content))
     blips = []
     for row in reader:
-        name = row.get("name", "").strip()
+        # Sanitize all external data
+        name = sanitize_external_data(row.get("name", "").strip())
         if not name:
             continue
         blips.append(
             HistoricalBlip(
                 name=name,
-                ring=row.get("ring", "").strip().capitalize(),
+                ring=sanitize_external_data(row.get("ring", "").strip().capitalize()),
                 quadrant=_normalize_quadrant(row.get("quadrant", "")),
-                volume=volume,
+                volume=sanitize_external_data(volume),
             )
         )
     return blips

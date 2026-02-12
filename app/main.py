@@ -18,6 +18,7 @@ from app.config import DEV_MODE
 from app.conversation import ConversationSession
 from app.quality import calculate_scores, get_missing_fields, get_ring_gaps
 from app.radar_history import load_history
+from app.sanitization import sanitize_user_message, contains_injection_pattern
 from app.storage import save_submission
 
 if DEV_MODE:
@@ -166,7 +167,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str) -> None:
         while True:
             data = await websocket.receive_json()
             action = data.get("action", "message")
-            user_message = data.get("message", "").strip()
+            raw_message = data.get("message", "").strip()
 
             if action == "reset":
                 session.reset()
@@ -175,6 +176,17 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str) -> None:
                 )
                 await _send_quality_update(websocket, session)
                 continue
+
+            # Sanitize user input to prevent prompt injection
+            user_message = sanitize_user_message(raw_message)
+
+            # Log potential injection attempts (don't block, but monitor)
+            if user_message and contains_injection_pattern(raw_message):
+                logger.warning(
+                    "Potential prompt injection detected in session %s: %s",
+                    session_id,
+                    raw_message[:100],
+                )
 
             if not user_message and action != "submit":
                 continue

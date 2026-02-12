@@ -11,7 +11,8 @@ def test_build_prompt_includes_blip_state():
         missing_fields=["ring"],
         ring_gaps=[],
     )
-    assert '{"name": "Docker"}' in result
+    # JSON is re-formatted with indentation for readability
+    assert '"name": "Docker"' in result
 
 
 def test_build_prompt_formats_scores_as_integers():

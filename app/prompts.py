@@ -1,5 +1,51 @@
 """System prompt and templates for the radar blip coaching conversation."""
 
+import json
+import re
+
+
+def _sanitize_for_prompt(text: str) -> str:
+    """Sanitize text that will be embedded in the system prompt.
+
+    Escapes patterns that could be used to break out of the data context.
+    """
+    if not text:
+        return text
+
+    # Remove/escape potential instruction boundary markers
+    text = re.sub(r'(?i)(end|new|ignore)\s+(system|instruction|prompt)', r'[\1 \2]', text)
+    text = re.sub(r'(?i)(you are now|act as|pretend to be)', r'[\1]', text)
+
+    # Escape XML-like tags
+    text = re.sub(r'<(/?)([a-zA-Z]+)', r'[\1\2', text)
+
+    return text
+
+
+def _sanitize_json_for_prompt(json_str: str) -> str:
+    """Sanitize JSON string values that will be embedded in the system prompt."""
+    try:
+        data = json.loads(json_str)
+        # Recursively sanitize string values
+        sanitized = _sanitize_dict(data)
+        return json.dumps(sanitized, indent=2)
+    except json.JSONDecodeError:
+        # If it's not valid JSON, sanitize the whole string
+        return _sanitize_for_prompt(json_str)
+
+
+def _sanitize_dict(obj):
+    """Recursively sanitize string values in a dict/list structure."""
+    if isinstance(obj, dict):
+        return {k: _sanitize_dict(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [_sanitize_dict(item) for item in obj]
+    elif isinstance(obj, str):
+        return _sanitize_for_prompt(obj)
+    else:
+        return obj
+
+
 SYSTEM_PROMPT = """\
 You are a Technology Radar blip submission coach for Thoughtworks. Your role is \
 to help Thoughtworkers submit high-quality blips for consideration in upcoming \
@@ -112,11 +158,21 @@ def build_system_prompt(
     missing_fields: list[str],
     ring_gaps: list[str],
 ) -> str:
-    """Build the system prompt with current blip state injected."""
+    """Build the system prompt with current blip state injected.
+
+    The blip state JSON is sanitized to prevent prompt injection attacks
+    where user-controlled data could manipulate Claude's behavior.
+    """
+    # Sanitize the blip state to prevent injection via user-controlled fields
+    safe_blip_json = _sanitize_json_for_prompt(blip_state_json)
+
+    # Sanitize ring_gaps which may contain user data
+    safe_ring_gaps = [_sanitize_for_prompt(gap) for gap in ring_gaps]
+
     return SYSTEM_PROMPT.format(
-        blip_state_json=blip_state_json,
+        blip_state_json=safe_blip_json,
         completeness_score=f"{completeness_score:.0f}",
         quality_score=f"{quality_score:.0f}",
         missing_fields=", ".join(missing_fields) if missing_fields else "None",
-        ring_gaps=("\n  - ".join([""] + ring_gaps) if ring_gaps else "None"),
+        ring_gaps=("\n  - ".join([""] + safe_ring_gaps) if safe_ring_gaps else "None"),
     )
