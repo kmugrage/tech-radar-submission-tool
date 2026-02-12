@@ -151,7 +151,10 @@ def _handle_check_history(name: str) -> dict:
 
 def _handle_extract_blip(data: dict, blip: BlipSubmission) -> dict:
     """Merge extracted data into the blip and return a status dict."""
-    for key, value in data.items():
+    # Validate through Pydantic so strings like "Trial" are coerced to enums
+    validated = BlipSubmission.model_validate(data)
+    for key in data:
+        value = getattr(validated, key, None)
         if value is not None and hasattr(blip, key):
             setattr(blip, key, value)
 

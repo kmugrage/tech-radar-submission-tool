@@ -3,6 +3,7 @@
 const sessionId = crypto.randomUUID();
 let ws = null;
 let currentAssistantMsg = null;
+let currentAssistantRaw = "";   // accumulates raw text for streaming markdown
 let isSubmitted = false;
 
 function connect() {
@@ -74,9 +75,10 @@ function appendUserMessage(text) {
 function appendAssistantMessage(text) {
     const el = document.createElement("div");
     el.className = "message assistant";
-    el.textContent = text;
+    el.innerHTML = markdownToHtml(text);
     document.getElementById("messages").appendChild(el);
     currentAssistantMsg = null;
+    currentAssistantRaw = "";
     scrollToBottom();
 }
 
@@ -84,14 +86,21 @@ function appendChunk(text) {
     if (!currentAssistantMsg) {
         currentAssistantMsg = document.createElement("div");
         currentAssistantMsg.className = "message assistant";
+        currentAssistantRaw = "";
         document.getElementById("messages").appendChild(currentAssistantMsg);
     }
-    currentAssistantMsg.textContent += text;
+    currentAssistantRaw += text;
+    currentAssistantMsg.innerHTML = markdownToHtml(currentAssistantRaw);
     scrollToBottom();
 }
 
 function finalizeAssistantMessage() {
+    // Re-render final markdown now that all chunks are in
+    if (currentAssistantMsg && currentAssistantRaw) {
+        currentAssistantMsg.innerHTML = markdownToHtml(currentAssistantRaw);
+    }
     currentAssistantMsg = null;
+    currentAssistantRaw = "";
 }
 
 function scrollToBottom() {
@@ -264,6 +273,43 @@ function escapeHtml(text) {
     const div = document.createElement("div");
     div.textContent = text;
     return div.innerHTML;
+}
+
+/**
+ * Convert a plain-text markdown string to safe HTML.
+ * Escapes HTML first (XSS protection), then applies markdown formatting.
+ */
+function markdownToHtml(text) {
+    let html = escapeHtml(text);
+
+    // Bold: **text** or __text__
+    html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    html = html.replace(/__(.+?)__/g, "<strong>$1</strong>");
+
+    // Italic: *text* or _text_ (but not inside already-converted <strong>)
+    html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
+    html = html.replace(/\b_(.+?)_\b/g, "<em>$1</em>");
+
+    // Unordered list items: lines starting with "- " or "* "
+    html = html.replace(/^(?:- |\* )(.+)$/gm, "<li>$1</li>");
+
+    // Ordered list items: lines starting with "1. ", "2. ", etc.
+    html = html.replace(/^\d+\.\s+(.+)$/gm, "<li>$1</li>");
+
+    // Wrap consecutive <li> runs in <ul>
+    html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, "<ul>$1</ul>");
+
+    // Line breaks: double newline → paragraph break, single newline → <br>
+    html = html.replace(/\n{2,}/g, "</p><p>");
+    html = html.replace(/\n/g, "<br>");
+
+    // Wrap in a paragraph
+    html = "<p>" + html + "</p>";
+
+    // Clean up empty paragraphs
+    html = html.replace(/<p>\s*<\/p>/g, "");
+
+    return html;
 }
 
 // --- Init ---
