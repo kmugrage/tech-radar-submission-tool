@@ -16,15 +16,19 @@ MAX_LIST_ITEM_LENGTH = 500
 INJECTION_PATTERNS = [
     # System/instruction boundary markers
     r"(?i)\b(end\s+)?(system\s+)?(prompt|instruction|context)\b",
-    r"(?i)\b(new|ignore|override|forget)\s+(instructions?|rules?|prompt)\b",
+    r"(?i)\b(new|ignore|override|forget|disregard)\s+(all\s+)?(instructions?|rules?|prompts?|everything)\b",
     r"(?i)\b(you\s+are\s+now|act\s+as|pretend\s+to\s+be)\b",
-    r"(?i)\bignore\s+(all\s+)?(previous|above|prior)\b",
+    r"(?i)\bignore\s+(all\s+)?(previous|above|prior|the\s+above)\b",
     # Role/persona manipulation (role markers that could confuse message parsing)
     r"(?i)^(assistant|system|user)\s*:",
     # XML/markdown that could confuse parsing
     r"<\s*/?system\s*>",
     r"<\s*/?instruction\s*>",
     r"<\s*/?prompt\s*>",
+    r"<\s*/?\s*user\s*>",
+    # Additional jailbreak patterns
+    r"(?i)\bDAN\s+(mode|jailbreak)\b",
+    r"(?i)\b(forget|disregard)\s+(everything|all)",
 ]
 
 # Compiled patterns for efficiency
@@ -112,7 +116,11 @@ def sanitize_external_data(text: str) -> str:
     # Apply standard sanitization
     text = sanitize_text(text, MAX_SHORT_FIELD_LENGTH)
 
-    # Additional: escape any XML-like tags that could confuse parsing
+    # Escape any XML-like tags that could confuse parsing
     text = re.sub(r'<([^>]+)>', r'[\1]', text)
+
+    # Escape common injection boundary markers
+    text = re.sub(r'(?i)(end|new)\s+(system\s+)?(prompt|instruction)', r'[\1 \2\3]', text)
+    text = re.sub(r'(?i)(ignore|forget|disregard)\s+(all\s+)?(previous|instructions|rules)', r'[\1 \2\3]', text)
 
     return text
