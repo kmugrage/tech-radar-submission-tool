@@ -87,6 +87,7 @@ The submitter can click "Submit Blip" at any time to finalize.
 | `app/quality.py` | Completeness and quality scoring logic |
 | `app/radar_history.py` | Loads and searches historical radar CSV data |
 | `app/conversation.py` | Per-session conversation state |
+| `app/sanitization.py` | Input sanitization and prompt injection detection |
 | `app/storage.py` | Saves submissions to JSON |
 | `static/` | Frontend: single-page app (HTML, JS, CSS) |
 
@@ -116,10 +117,12 @@ Submissions collect these fields:
 
 | Ring | Bonus criteria |
 |------|---------------|
-| **Adopt** | 2+ client references (+20), description ≥ 200 chars (+15), weaknesses filled (+10) |
-| **Trial** | 1+ client reference (+15), description ≥ 150 chars (+15), alternatives filled (+10) |
-| **Assess** | Description ≥ 100 chars (+15), why_now filled (+15) |
-| **Hold** | Description ≥ 100 chars (+15), weaknesses filled (+15), alternatives filled (+10) |
+| **Adopt** | 2+ client references (+20), description filled (+10), strengths filled (+10) |
+| **Trial** | 1+ client reference (+15), description filled (+10), alternatives filled (+15) |
+| **Assess** | Description filled (+20), why_now filled (+20) |
+| **Hold** | Description filled (+10), weaknesses filled (+15), alternatives filled (+15) |
+
+Each ring has exactly 40 bonus points available. Quality = (completeness + ring bonus) / 140 × 100, so the scoring is fair across all rings.
 
 ## Configuration
 
@@ -128,7 +131,7 @@ All configuration is via environment variables (or `.env` file):
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `ANTHROPIC_API_KEY` | *(required)* | Your Anthropic API key |
-| `MODEL_NAME` | `claude-sonnet-4-20250514` | Claude model to use |
+| `MODEL_NAME` | `claude-sonnet-4-5-20250929` | Claude model to use |
 | `DEV_MODE` | `false` | Use mock responses without an API key |
 
 ## Radar History
@@ -138,7 +141,7 @@ Historical radar data comes from the [`setchy/thoughtworks-tech-radar-volumes`](
 ## Testing
 
 ```bash
-# Run all 27 tests
+# Run all tests
 pytest
 
 # Verbose output
@@ -151,7 +154,7 @@ pytest tests/test_quality.py -v
 pytest -k "quality" -v
 ```
 
-Tests cover models, quality scoring, radar history parsing, JSON storage, conversation sessions, prompt formatting, the mock client, and the WebSocket endpoint.
+Tests cover models, quality scoring, radar history parsing, JSON storage, conversation sessions, prompt formatting, the mock client, input sanitization, security (prompt injection, session management, data boundaries), and the WebSocket endpoint.
 
 ## Project Structure
 
@@ -168,6 +171,7 @@ Tests cover models, quality scoring, radar history parsing, JSON storage, conver
 │   ├── prompts.py
 │   ├── quality.py
 │   ├── radar_history.py
+│   ├── sanitization.py
 │   └── storage.py
 ├── data/
 │   ├── radar_history/          # 33 historical radar CSV files
@@ -186,6 +190,8 @@ Tests cover models, quality scoring, radar history parsing, JSON storage, conver
 │   ├── test_prompts.py
 │   ├── test_quality.py
 │   ├── test_radar_history.py
+│   ├── test_sanitization.py
+│   ├── test_security.py
 │   └── test_storage.py
 ├── .env.example
 ├── .gitignore
@@ -193,6 +199,7 @@ Tests cover models, quality scoring, radar history parsing, JSON storage, conver
 ├── docker-compose.yml
 ├── Makefile
 ├── requirements.txt
+├── requirements-dev.txt
 └── README.md
 ```
 
