@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.models import BlipSubmission, Ring
+from app.models import BlipSubmission
 
 # Weights for completeness scoring (sum = 100)
 FIELD_WEIGHTS: dict[str, int] = {
@@ -17,28 +17,43 @@ FIELD_WEIGHTS: dict[str, int] = {
     "weaknesses": 5,
 }
 
-# Ring-specific evidence requirements that add quality bonus points
-RING_EVIDENCE: dict[str, dict] = {
-    Ring.ADOPT: {
-        "client_references": {"min_count": 2, "bonus": 20},
-        "description": {"min_length": 200, "bonus": 15},
-        "weaknesses": {"required": True, "bonus": 10},
-    },
-    Ring.TRIAL: {
-        "client_references": {"min_count": 1, "bonus": 15},
-        "description": {"min_length": 150, "bonus": 15},
-        "alternatives_considered": {"required": True, "bonus": 10},
-    },
-    Ring.ASSESS: {
-        "description": {"min_length": 100, "bonus": 15},
-        "why_now": {"required": True, "bonus": 15},
-    },
-    Ring.HOLD: {
-        "description": {"min_length": 100, "bonus": 15},
-        "weaknesses": {"required": True, "bonus": 15},
-        "alternatives_considered": {"required": True, "bonus": 10},
-    },
+# Ring-specific evidence checks — each ring totals exactly 40 bonus points
+# so the quality denominator (100 + 40 = 140) is the same for every ring.
+RING_EVIDENCE: dict[str, list[dict]] = {
+    "Adopt": [
+        {"field": "client_references", "min_count": 2, "bonus": 20,
+         "gap": "Adopt suggests at least 2 client references"},
+        {"field": "description", "required": True, "bonus": 10,
+         "gap": "A description is essential for an Adopt recommendation"},
+        {"field": "strengths", "required": True, "bonus": 10,
+         "gap": "List strengths to justify Adopt placement"},
+    ],
+    "Trial": [
+        {"field": "client_references", "min_count": 1, "bonus": 15,
+         "gap": "Trial blips benefit from at least 1 client reference"},
+        {"field": "description", "required": True, "bonus": 10,
+         "gap": "A description is essential for a Trial recommendation"},
+        {"field": "alternatives_considered", "required": True, "bonus": 15,
+         "gap": "Describe alternatives you considered before recommending Trial"},
+    ],
+    "Assess": [
+        {"field": "description", "required": True, "bonus": 20,
+         "gap": "A thorough description is critical for an Assess recommendation"},
+        {"field": "why_now", "required": True, "bonus": 20,
+         "gap": "Explain why this technology is worth assessing now"},
+    ],
+    "Hold": [
+        {"field": "description", "required": True, "bonus": 10,
+         "gap": "Describe why teams should hold on this technology"},
+        {"field": "weaknesses", "required": True, "bonus": 15,
+         "gap": "Describe weaknesses that justify the Hold recommendation"},
+        {"field": "alternatives_considered", "required": True, "bonus": 15,
+         "gap": "Suggest alternatives teams should consider instead"},
+    ],
 }
+
+# Total bonus points per ring (must be equal for fair scoring)
+_BONUS_TOTAL = 40
 
 
 def _field_is_filled(value: object) -> bool:
@@ -52,6 +67,23 @@ def _field_is_filled(value: object) -> bool:
     return True
 
 
+def _ring_bonus(blip: BlipSubmission) -> float:
+    """Calculate ring-specific evidence bonus (0–40)."""
+    if blip.ring is None:
+        return 0.0
+    checks = RING_EVIDENCE.get(blip.ring.value, [])
+    earned = 0.0
+    for check in checks:
+        value = getattr(blip, check["field"], None)
+        if "min_count" in check:
+            if isinstance(value, list) and len(value) >= check["min_count"]:
+                earned += check["bonus"]
+        elif check.get("required"):
+            if _field_is_filled(value):
+                earned += check["bonus"]
+    return earned
+
+
 def calculate_completeness(blip: BlipSubmission) -> float:
     """Calculate completeness score (0-100) as weighted % of filled fields."""
     earned = 0.0
@@ -62,47 +94,16 @@ def calculate_completeness(blip: BlipSubmission) -> float:
     return earned
 
 
-def _ring_bonus(blip: BlipSubmission) -> tuple[float, float]:
-    """Calculate earned and max ring-specific bonus points."""
-    if blip.ring is None:
-        return 0.0, 0.0
-
-    requirements = RING_EVIDENCE.get(blip.ring, {})
-    earned = 0.0
-    maximum = 0.0
-
-    for field, req in requirements.items():
-        bonus = req["bonus"]
-        maximum += bonus
-        value = getattr(blip, field, None)
-
-        if "min_count" in req and isinstance(value, list):
-            if len(value) >= req["min_count"]:
-                earned += bonus
-        elif "min_length" in req and isinstance(value, str):
-            if len(value) >= req["min_length"]:
-                earned += bonus
-        elif "required" in req and _field_is_filled(value):
-            earned += bonus
-
-    return earned, maximum
-
-
 def calculate_quality(blip: BlipSubmission) -> float:
     """Calculate quality score (0-100).
 
-    Quality = completeness scaled into the base portion, plus ring-specific
-    bonus points. The result is normalized so 100 means both full
-    completeness and all ring bonuses met.
+    Quality = (completeness + ring_bonus) / 140 * 100.
+    The denominator is always 140 (100 base + 40 ring bonus) regardless of
+    which ring is chosen, so scoring is fair across all rings.
     """
     completeness = calculate_completeness(blip)
-    bonus_earned, bonus_max = _ring_bonus(blip)
-
-    total_possible = 100.0 + bonus_max
-    raw = completeness + bonus_earned
-    if total_possible == 0:
-        return 0.0
-    return min(100.0, (raw / total_possible) * 100.0)
+    bonus = _ring_bonus(blip)
+    return (completeness + bonus) / (100 + _BONUS_TOTAL) * 100
 
 
 def calculate_scores(blip: BlipSubmission) -> tuple[float, float]:
@@ -121,31 +122,17 @@ def get_missing_fields(blip: BlipSubmission) -> list[str]:
 
 
 def get_ring_gaps(blip: BlipSubmission) -> list[str]:
-    """Return human-readable descriptions of unmet ring-specific evidence."""
+    """Return ring-specific evidence gaps for the current ring."""
     if blip.ring is None:
         return []
-
-    requirements = RING_EVIDENCE.get(blip.ring, {})
+    checks = RING_EVIDENCE.get(blip.ring.value, [])
     gaps = []
-
-    for field, req in requirements.items():
-        value = getattr(blip, field, None)
-        label = field.replace("_", " ").title()
-
-        if "min_count" in req:
-            count = len(value) if isinstance(value, list) else 0
-            needed = req["min_count"]
-            if count < needed:
-                gaps.append(f"{label}: need at least {needed}, have {count}")
-        elif "min_length" in req:
-            length = len(value) if isinstance(value, str) else 0
-            needed = req["min_length"]
-            if length < needed:
-                gaps.append(
-                    f"{label}: need at least {needed} characters, have {length}"
-                )
-        elif "required" in req:
+    for check in checks:
+        value = getattr(blip, check["field"], None)
+        if "min_count" in check:
+            if not isinstance(value, list) or len(value) < check["min_count"]:
+                gaps.append(check["gap"])
+        elif check.get("required"):
             if not _field_is_filled(value):
-                gaps.append(f"{label}: required for {blip.ring.value} ring")
-
+                gaps.append(check["gap"])
     return gaps

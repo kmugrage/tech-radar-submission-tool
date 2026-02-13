@@ -130,9 +130,9 @@ def _build_system(blip: BlipSubmission) -> str:
     """Build the system prompt with the current blip state."""
     completeness, quality = calculate_scores(blip)
     missing = get_missing_fields(blip)
-    gaps = get_ring_gaps(blip)
+    ring_gaps = get_ring_gaps(blip)
     state_json = blip.model_dump_json(exclude_none=True, indent=2)
-    return build_system_prompt(state_json, completeness, quality, missing, gaps)
+    return build_system_prompt(state_json, completeness, quality, missing, ring_gaps)
 
 
 def _handle_check_history(name: str) -> dict:

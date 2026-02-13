@@ -238,16 +238,17 @@ function updateMissingFields(missingFields, ringGaps) {
     const container = document.getElementById("missing-fields");
     let html = "";
 
-    if (ringGaps && ringGaps.length > 0) {
-        for (const gap of ringGaps) {
-            html += `<div class="missing-item">${escapeHtml(gap)}</div>`;
-        }
-    }
-
     if (missingFields && missingFields.length > 0) {
         for (const field of missingFields) {
             const label = FIELD_LABELS[field] || field.replace(/_/g, " ");
             html += `<div class="missing-item">${escapeHtml(label)}</div>`;
+        }
+    }
+
+    if (ringGaps && ringGaps.length > 0) {
+        html += '<div class="ring-gaps-header">Ring-specific gaps:</div>';
+        for (const gap of ringGaps) {
+            html += `<div class="missing-item ring-gap">${escapeHtml(gap)}</div>`;
         }
     }
 

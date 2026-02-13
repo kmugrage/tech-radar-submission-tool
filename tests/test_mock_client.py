@@ -126,7 +126,7 @@ class TestPickResponse:
         assert "description" in response.lower()
         assert pending == "description"
 
-    def test_adopt_asks_client_refs(self):
+    def test_asks_client_refs_when_missing(self):
         blip = BlipSubmission(
             name="Docker",
             ring=Ring.ADOPT,
@@ -135,7 +135,28 @@ class TestPickResponse:
         )
         response, pending = _pick_response(blip, "desc", is_submit=False)
         assert "client" in response.lower()
-        assert "at least 2" in response
+        assert pending == "client_references"
+
+    def test_adopt_asks_for_2_client_refs(self):
+        blip = BlipSubmission(
+            name="Docker",
+            ring=Ring.ADOPT,
+            quadrant=Quadrant.PLATFORMS,
+            description="Container platform for app deployment",
+        )
+        response, pending = _pick_response(blip, "desc", is_submit=False)
+        assert "2 client references" in response
+        assert pending == "client_references"
+
+    def test_trial_asks_for_1_client_ref(self):
+        blip = BlipSubmission(
+            name="Docker",
+            ring=Ring.TRIAL,
+            quadrant=Quadrant.PLATFORMS,
+            description="Container platform for app deployment",
+        )
+        response, pending = _pick_response(blip, "desc", is_submit=False)
+        assert "1 client reference" in response
         assert pending == "client_references"
 
     def test_complete_blip_encourages_submit(self, populated_blip):

@@ -129,7 +129,7 @@ def _pick_response(blip: BlipSubmission, user_text: str, is_submit: bool) -> tup
     if is_submit:
         c, q = calculate_scores(blip)
         missing = get_missing_fields(blip)
-        gaps = get_ring_gaps(blip)
+        ring_gaps = get_ring_gaps(blip)
         parts = [
             f"Thanks for your submission! Here's a summary:\n\n"
             f"**{blip.name or 'Unnamed'}** — "
@@ -138,16 +138,13 @@ def _pick_response(blip: BlipSubmission, user_text: str, is_submit: bool) -> tup
             f"Completeness: {c:.0f}%\n"
             f"Quality: {q:.0f}%\n"
         ]
-        if gaps:
-            parts.append("\nTo strengthen this submission in the future:\n")
-            for gap in gaps:
-                parts.append(f"  - {gap}\n")
         if missing:
             parts.append(f"\nStill missing: {', '.join(missing)}")
+        if ring_gaps:
+            parts.append(f"\nRing-specific gaps: {', '.join(ring_gaps)}")
         return "".join(parts), None
 
     missing = get_missing_fields(blip)
-    gaps = get_ring_gaps(blip)
 
     # Determine what to ask about next
     if blip.name is None:
@@ -191,22 +188,27 @@ def _pick_response(blip: BlipSubmission, user_text: str, is_submit: bool) -> tup
             "description",
         )
 
-    # Ring-specific coaching
-    if blip.ring in (Ring.ADOPT, Ring.TRIAL):
-        refs = blip.client_references or []
-        needed = 2 if blip.ring == Ring.ADOPT else 1
-        if len(refs) < needed:
-            return (
-                f"For a **{blip.ring.value}** recommendation, I'll need at least "
-                f"{needed} client reference{'s' if needed > 1 else ''} where "
-                f"{blip.name} was used in production. Can you describe a client "
-                f"project where you used it? What was the outcome?",
-                "client_references",
+    if not blip.client_references:
+        if blip.ring == Ring.ADOPT:
+            ref_msg = (
+                f"Can you describe client projects where {blip.name} was used? "
+                f"For an Adopt recommendation, at least 2 client references "
+                f"strengthen the case significantly."
             )
+        elif blip.ring == Ring.TRIAL:
+            ref_msg = (
+                f"Can you describe a client project where {blip.name} was used? "
+                f"For a Trial recommendation, at least 1 client reference "
+                f"helps support the placement."
+            )
+        else:
+            ref_msg = (
+                f"Can you describe a client project where {blip.name} was used? "
+                f"Concrete references strengthen any submission."
+            )
+        return ref_msg, "client_references"
 
-    if not blip.alternatives_considered and any(
-        "alternatives" in g.lower() for g in gaps
-    ):
+    if not blip.alternatives_considered:
         return (
             f"What alternatives to {blip.name} did you consider? "
             f"Knowing what you compared it against helps the TAB "
@@ -214,7 +216,7 @@ def _pick_response(blip: BlipSubmission, user_text: str, is_submit: bool) -> tup
             "alternatives_considered",
         )
 
-    if blip.weaknesses is None and blip.ring in (Ring.ADOPT, Ring.HOLD):
+    if blip.weaknesses is None:
         return (
             f"What are the known weaknesses or limitations of {blip.name}? "
             f"Being upfront about drawbacks actually strengthens your submission.",

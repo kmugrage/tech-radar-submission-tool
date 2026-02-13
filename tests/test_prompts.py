@@ -9,7 +9,7 @@ def test_build_prompt_includes_blip_state():
         completeness_score=50.0,
         quality_score=40.0,
         missing_fields=["ring"],
-        ring_gaps=[],
+        ring_gaps=["Needs description"],
     )
     # JSON is re-formatted with indentation for readability
     assert '"name": "Docker"' in result
@@ -52,32 +52,6 @@ def test_build_prompt_no_missing_fields():
     assert "Missing fields: None" in result
 
 
-def test_build_prompt_ring_gaps_formatted():
-    gaps = ["Need at least 2 client references", "Description too short"]
-    result = build_system_prompt(
-        blip_state_json="{}",
-        completeness_score=50,
-        quality_score=30,
-        missing_fields=[],
-        ring_gaps=gaps,
-    )
-    assert "Need at least 2 client references" in result
-    assert "Description too short" in result
-    # Should be formatted as bullet points with "  - " prefix
-    assert "  - Need at least 2 client references" in result
-
-
-def test_build_prompt_no_ring_gaps():
-    result = build_system_prompt(
-        blip_state_json="{}",
-        completeness_score=100,
-        quality_score=100,
-        missing_fields=[],
-        ring_gaps=[],
-    )
-    assert "Ring-specific gaps: None" in result
-
-
 def test_build_prompt_contains_coaching_content():
     result = build_system_prompt(
         blip_state_json="{}",
@@ -95,3 +69,48 @@ def test_build_prompt_contains_coaching_content():
     assert "Trial" in result
     assert "Assess" in result
     assert "Hold" in result
+
+
+def test_build_prompt_ring_gaps_formatted():
+    result = build_system_prompt(
+        blip_state_json="{}",
+        completeness_score=50,
+        quality_score=40,
+        missing_fields=["description"],
+        ring_gaps=["Adopt suggests at least 2 client references", "List strengths"],
+    )
+    assert "Adopt suggests at least 2 client references, List strengths" in result
+
+
+def test_build_prompt_no_ring_gaps():
+    result = build_system_prompt(
+        blip_state_json="{}",
+        completeness_score=100,
+        quality_score=100,
+        missing_fields=[],
+        ring_gaps=[],
+    )
+    assert "Ring-specific gaps: None" in result
+
+
+def test_build_prompt_ring_gaps_default_none():
+    """ring_gaps parameter defaults to None when not provided."""
+    result = build_system_prompt(
+        blip_state_json="{}",
+        completeness_score=50,
+        quality_score=40,
+        missing_fields=["ring"],
+    )
+    assert "Ring-specific gaps: None" in result
+
+
+def test_build_prompt_contains_ring_evidence_guidelines():
+    result = build_system_prompt(
+        blip_state_json="{}",
+        completeness_score=0,
+        quality_score=0,
+        missing_fields=[],
+        ring_gaps=[],
+    )
+    assert "RING-SPECIFIC EVIDENCE GUIDELINES" in result
+    assert "2 client references" in result

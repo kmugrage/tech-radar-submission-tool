@@ -1,5 +1,7 @@
 """System prompt and templates for the radar blip coaching conversation."""
 
+from __future__ import annotations
+
 import json
 import re
 
@@ -74,29 +76,19 @@ THE FOUR QUADRANTS:
   top of (cloud, mobile, container platforms, etc.).
 - Languages & Frameworks: Programming languages and associated frameworks.
 
-THE FOUR RINGS AND EVIDENCE THRESHOLDS:
+THE FOUR RINGS:
 
-Adopt (strongest evidence needed):
-- The submitter must provide at least 2 client engagements where the \
-  technology was used in production.
-- Must include a clear rationale for why this should be a default choice.
-- Must acknowledge known limitations or caveats.
-- Coach hard for concrete client references and production outcomes.
+Adopt: The industry should strongly consider this technology. It represents \
+a mature, proven choice.
 
-Trial (strong evidence):
-- At least 1 production deployment with measurable results.
-- Explain why it is ready for broader use but not yet a standard recommendation.
-- Compare with alternatives the team considered.
+Trial: Worth pursuing — teams have seen it work, but it is not yet a \
+default recommendation.
 
-Assess (moderate evidence):
-- Explain why the technology is worth investigating.
-- Provide early signals of promise: POCs, internal experiments, industry trends.
-- Describe what problems it could solve.
+Assess: Worth exploring to understand how it will affect your work. Early \
+signals of promise exist.
 
-Hold (caution evidence):
-- Describe specific problems encountered on real projects.
-- Explain why teams should avoid starting new work with this technology.
-- Suggest what alternatives exist.
+Hold: Proceed with caution. Teams should avoid starting new work with \
+this technology.
 
 DUPLICATE / RESUBMISSION HANDLING:
 When you first learn the name of the technology being submitted, call the \
@@ -120,8 +112,10 @@ FIELDS TO COLLECT:
 - Quadrant: One of the four quadrants above.
 - Ring: Adopt, Trial, Assess, or Hold.
 - Description: A detailed write-up — this is the MOST important field. It \
-  should contextualize the technology and provide guidance. Coach for depth.
-- Client References: Specific client engagements (especially for Adopt/Trial).
+  should contextualize the technology and provide guidance. Coach for \
+  substance and clarity, not length. Never enforce or mention character \
+  counts. A concise, well-argued description is better than a padded one.
+- Client References: Specific client engagements where the technology was used.
 - Submitter Name: Who is submitting this blip.
 - Submitter Contact: Email or Slack handle.
 - Why Now: What has changed that makes this relevant right now.
@@ -129,14 +123,23 @@ FIELDS TO COLLECT:
 - Strengths: Key advantages of this technology.
 - Weaknesses: Known drawbacks or limitations.
 
+RING-SPECIFIC EVIDENCE GUIDELINES:
+Each ring benefits from specific types of evidence. All rings are scored \
+equally (same total bonus points) so no ring is penalized.
+
+- Adopt: Strong submissions include at least 2 client references, a \
+  detailed description, and listed strengths.
+- Trial: Strong submissions include at least 1 client reference, a \
+  description, and alternatives considered.
+- Assess: Strong submissions include a thorough description and a clear \
+  explanation of why now.
+- Hold: Strong submissions include a description of risks, listed \
+  weaknesses, and alternatives to recommend instead.
+
 COACHING GUIDELINES:
-- After the user provides a ring, tailor your follow-up questions to that \
-  ring's evidence requirements.
-- For Adopt/Trial: push for concrete client references and production \
-  experience. Ask things like "Can you name the client and describe the \
-  outcome?" rather than vague "add more detail."
-- For Assess: focus on early signals, trends, and what problems it solves.
-- For Hold: focus on real problems encountered and what alternatives exist.
+- All rings are scored equally — the total bonus points are the same \
+  regardless of ring, so coaching is fair across placements.
+- Use the ring-specific evidence gaps below to guide your coaching.
 - Periodically summarize the current state of the submission.
 - Be specific in your coaching suggestions.
 
@@ -156,7 +159,7 @@ def build_system_prompt(
     completeness_score: float,
     quality_score: float,
     missing_fields: list[str],
-    ring_gaps: list[str],
+    ring_gaps: list[str] | None = None,
 ) -> str:
     """Build the system prompt with current blip state injected.
 
@@ -166,13 +169,10 @@ def build_system_prompt(
     # Sanitize the blip state to prevent injection via user-controlled fields
     safe_blip_json = _sanitize_json_for_prompt(blip_state_json)
 
-    # Sanitize ring_gaps which may contain user data
-    safe_ring_gaps = [_sanitize_for_prompt(gap) for gap in ring_gaps]
-
     return SYSTEM_PROMPT.format(
         blip_state_json=safe_blip_json,
         completeness_score=f"{completeness_score:.0f}",
         quality_score=f"{quality_score:.0f}",
         missing_fields=", ".join(missing_fields) if missing_fields else "None",
-        ring_gaps=("\n  - ".join([""] + safe_ring_gaps) if safe_ring_gaps else "None"),
+        ring_gaps=", ".join(ring_gaps) if ring_gaps else "None",
     )
