@@ -99,9 +99,10 @@ def _extract_fields_from_text(text: str, blip: BlipSubmission) -> dict:
     # --- Pending field fallback ---
     # If the mock previously asked about a specific field and the keyword
     # extraction above didn't fill it, assign the user's text as the answer.
+    # Skip enum fields (ring, quadrant) since raw text is not a valid value.
     blip_id = id(blip)
     pending = _pending_field.pop(blip_id, None)
-    if pending and pending not in changes:
+    if pending and pending not in changes and pending not in ("ring", "quadrant"):
         current_val = getattr(blip, pending, None)
         if current_val is None:
             # Fields that are lists get the text as a single-item list
@@ -133,8 +134,8 @@ def _pick_response(blip: BlipSubmission, user_text: str, is_submit: bool) -> tup
         parts = [
             f"Thanks for your submission! Here's a summary:\n\n"
             f"**{blip.name or 'Unnamed'}** — "
-            f"{blip.ring.value if blip.ring else 'No ring'} / "
-            f"{blip.quadrant.value if blip.quadrant else 'No quadrant'}\n\n"
+            f"{getattr(blip.ring, 'value', blip.ring) if blip.ring else 'No ring'} / "
+            f"{getattr(blip.quadrant, 'value', blip.quadrant) if blip.quadrant else 'No quadrant'}\n\n"
             f"Completeness: {c:.0f}%\n"
             f"Quality: {q:.0f}%\n"
         ]
@@ -167,7 +168,7 @@ def _pick_response(blip: BlipSubmission, user_text: str, is_submit: bool) -> tup
 
     if blip.quadrant is None:
         return (
-            f"Got it — {blip.name} for the **{blip.ring.value}** ring. "
+            f"Got it — {blip.name} for the **{getattr(blip.ring, 'value', blip.ring)}** ring. "
             "Which quadrant does this belong in?\n\n"
             "- **Techniques** (processes, architectural patterns)\n"
             "- **Tools** (software applications and utilities)\n"
@@ -179,7 +180,7 @@ def _pick_response(blip: BlipSubmission, user_text: str, is_submit: bool) -> tup
     if blip.description is None:
         return (
             f"Now for the most important part — the description. "
-            f"For a **{blip.ring.value}** recommendation, I'd suggest writing "
+            f"For a **{getattr(blip.ring, 'value', blip.ring)}** recommendation, I'd suggest writing "
             f"at least a paragraph that explains:\n\n"
             f"- What {blip.name} is and what problem it solves\n"
             f"- Your experience using it (client projects, outcomes)\n"

@@ -71,7 +71,8 @@ def _ring_bonus(blip: BlipSubmission) -> float:
     """Calculate ring-specific evidence bonus (0–40)."""
     if blip.ring is None:
         return 0.0
-    checks = RING_EVIDENCE.get(blip.ring.value, [])
+    ring_key = getattr(blip.ring, "value", blip.ring)
+    checks = RING_EVIDENCE.get(ring_key, [])
     earned = 0.0
     for check in checks:
         value = getattr(blip, check["field"], None)
@@ -125,7 +126,8 @@ def get_ring_gaps(blip: BlipSubmission) -> list[str]:
     """Return ring-specific evidence gaps for the current ring."""
     if blip.ring is None:
         return []
-    checks = RING_EVIDENCE.get(blip.ring.value, [])
+    ring_key = getattr(blip.ring, "value", blip.ring)
+    checks = RING_EVIDENCE.get(ring_key, [])
     gaps = []
     for check in checks:
         value = getattr(blip, check["field"], None)
