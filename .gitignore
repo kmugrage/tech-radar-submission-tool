@@ -14,3 +14,8 @@ venv/
 
 .server.pid
 .server.log
+
+.DS_Store
+excel_scoring_prompt.md
+test-data.txt
+
