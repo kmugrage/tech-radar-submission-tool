@@ -9,3 +9,6 @@ dist/
 build/
 .venv/
 venv/
+
+.server.pid
+.server.log
