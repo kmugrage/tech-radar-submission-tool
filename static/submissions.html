@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TW Tech Radar — Submitted Blips</title>
+    <link rel="stylesheet" href="https://static.thoughtworks.com/fonts/inter/inter-v2.css">
+    <link rel="stylesheet" href="https://static.thoughtworks.com/fonts/bitter/bitter.css">
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        /* --- Submissions page layout --- */
+
+        .submissions-layout {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 68px);
+            overflow: hidden;
+        }
+
+        .submissions-toolbar {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            padding: 0.75rem 1.25rem;
+            background: white;
+            border-bottom: 1px solid var(--tw-border);
+        }
+
+        .submissions-toolbar label {
+            font-size: 0.82rem;
+            color: var(--tw-text-secondary);
+            font-weight: 500;
+        }
+
+        .submissions-toolbar select {
+            padding: 0.35rem 0.6rem;
+            border: 1px solid var(--tw-border);
+            border-radius: 0.4rem;
+            font-family: var(--font-body);
+            font-size: 0.85rem;
+            background: white;
+            cursor: pointer;
+        }
+
+        .submissions-toolbar select:focus {
+            outline: none;
+            border-color: var(--tw-flamingo);
+        }
+
+        #filter-btn {
+            padding: 0.35rem 0.9rem;
+            background: var(--tw-flamingo);
+            color: white;
+            border: none;
+            border-radius: 0.4rem;
+            font-family: var(--font-body);
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        #filter-btn:hover {
+            background: var(--tw-flamingo-dark);
+        }
+
+        #submission-count {
+            margin-left: auto;
+            font-size: 0.82rem;
+            color: var(--tw-text-secondary);
+        }
+
+        #submissions-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        /* --- Blip cards --- */
+
+        .blip-card {
+            background: white;
+            border: 1px solid var(--tw-border);
+            border-radius: 0.5rem;
+            padding: 0.875rem 1rem;
+        }
+
+        .blip-card-header {
+            display: flex;
+            align-items: baseline;
+            gap: 0.75rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .blip-name {
+            font-weight: 600;
+            font-size: 1rem;
+            background: none;
+            border: none;
+            padding: 0;
+            font-family: var(--font-body);
+            color: var(--tw-flamingo);
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .blip-name:hover {
+            text-decoration: underline;
+        }
+
+        .blip-ring {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 0.15rem 0.5rem;
+            border-radius: 1rem;
+        }
+
+        .ring-adopt  { background: #c6f6d5; color: #22543d; }
+        .ring-trial  { background: #bee3f8; color: #2a4365; }
+        .ring-assess { background: #fefcbf; color: #744210; }
+        .ring-hold   { background: #fed7d7; color: #742a2a; }
+        .ring-unknown { background: #e8e8e8; color: #555; }
+
+        .blip-meta {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            font-size: 0.78rem;
+            color: var(--tw-text-secondary);
+            margin-bottom: 0.45rem;
+        }
+
+        .blip-description {
+            font-size: 0.85rem;
+            color: #444;
+            line-height: 1.5;
+            margin-bottom: 0.45rem;
+        }
+
+        .blip-scores {
+            display: flex;
+            gap: 1.5rem;
+            font-size: 0.78rem;
+            color: #666;
+            border-top: 1px solid #f0f0f0;
+            padding-top: 0.4rem;
+        }
+
+        .blip-scores strong {
+            color: #333;
+        }
+
+        /* --- Detail modal --- */
+
+        #detail-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 200;
+            overflow-y: auto;
+            padding: 2rem 1rem;
+        }
+
+        #detail-overlay.open {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+        }
+
+        #detail-modal {
+            background: white;
+            border-radius: 0.6rem;
+            width: 100%;
+            max-width: 680px;
+            padding: 1.5rem;
+            position: relative;
+        }
+
+        #detail-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: transparent;
+            border: none;
+            font-size: 1.4rem;
+            line-height: 1;
+            color: #888;
+            cursor: pointer;
+            padding: 0.1rem 0.4rem;
+        }
+
+        #detail-close:hover {
+            color: #333;
+        }
+
+        #detail-modal h2 {
+            font-family: var(--font-heading);
+            font-size: 1.3rem;
+            margin-bottom: 0.25rem;
+            padding-right: 2rem;
+        }
+
+        .detail-badges {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 0.6rem;
+        }
+
+        .detail-meta {
+            font-size: 0.8rem;
+            color: var(--tw-text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        .detail-section {
+            margin-bottom: 1rem;
+        }
+
+        .detail-section h3 {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #888;
+            margin-bottom: 0.3rem;
+        }
+
+        .detail-section p,
+        .detail-section li {
+            font-size: 0.88rem;
+            color: #333;
+            line-height: 1.55;
+        }
+
+        .detail-section ul {
+            padding-left: 1.2rem;
+        }
+
+        .detail-section li {
+            margin-bottom: 0.15rem;
+        }
+
+        .detail-scores {
+            display: flex;
+            gap: 2rem;
+            padding: 0.75rem 1rem;
+            background: var(--tw-mist);
+            border-radius: 0.4rem;
+            margin-top: 1rem;
+        }
+
+        .detail-scores span {
+            font-size: 0.82rem;
+            color: #555;
+        }
+
+        .detail-scores strong {
+            color: #222;
+        }
+
+        /* --- States --- */
+
+        #loading-state,
+        #error-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--tw-text-secondary);
+            font-style: italic;
+        }
+
+        #error-state {
+            color: var(--tw-flamingo);
+        }
+
+        #empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: #999;
+        }
+
+        #empty-state p {
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        /* --- Responsive --- */
+
+        @media (max-width: 600px) {
+            .submissions-toolbar {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            #submission-count {
+                margin-left: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Technology Radar — Blip Submission</h1>
+        <nav class="page-nav">
+            <a href="/">Submit a Blip</a>
+            <a href="/submissions" class="active">View Submissions</a>
+        </nav>
+    </header>
+
+    <div class="submissions-layout">
+        <div class="submissions-toolbar">
+            <label for="filter-ring">Ring:</label>
+            <select id="filter-ring">
+                <option value="">All Rings</option>
+                <option value="Adopt">Adopt</option>
+                <option value="Trial">Trial</option>
+                <option value="Assess">Assess</option>
+                <option value="Hold">Hold</option>
+            </select>
+
+            <label for="filter-quadrant">Quadrant:</label>
+            <select id="filter-quadrant">
+                <option value="">All Quadrants</option>
+                <option value="Techniques">Techniques</option>
+                <option value="Tools">Tools</option>
+                <option value="Platforms">Platforms</option>
+                <option value="Languages &amp; Frameworks">Languages &amp; Frameworks</option>
+            </select>
+
+            <button id="filter-btn" onclick="loadSubmissions()">Filter</button>
+
+            <span id="submission-count"></span>
+        </div>
+
+        <div id="submissions-list">
+            <div id="loading-state">Loading submissions&hellip;</div>
+        </div>
+    </div>
+
+    <div id="detail-overlay" role="dialog" aria-modal="true" aria-labelledby="detail-title">
+        <div id="detail-modal">
+            <button id="detail-close" onclick="closeDetail()" aria-label="Close">&times;</button>
+            <h2 id="detail-title"></h2>
+            <div class="detail-badges" id="detail-badges"></div>
+            <div class="detail-meta" id="detail-meta"></div>
+            <div id="detail-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const RING_CLASSES = {
+            "Adopt": "ring-adopt",
+            "Trial": "ring-trial",
+            "Assess": "ring-assess",
+            "Hold": "ring-hold",
+        };
+
+        function escapeHtml(str) {
+            if (!str) return "";
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;");
+        }
+
+        function formatDate(isoString) {
+            if (!isoString) return "";
+            try {
+                return new Date(isoString).toLocaleDateString("en-GB", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                });
+            } catch (_) {
+                return isoString;
+            }
+        }
+
+        async function loadSubmissions() {
+            const ring = document.getElementById("filter-ring").value;
+            const quadrant = document.getElementById("filter-quadrant").value;
+            const listEl = document.getElementById("submissions-list");
+            const countEl = document.getElementById("submission-count");
+
+            listEl.innerHTML = '<div id="loading-state">Loading submissions&hellip;</div>';
+            countEl.textContent = "";
+
+            const params = new URLSearchParams();
+            if (ring) params.set("ring", ring);
+            if (quadrant) params.set("quadrant", quadrant);
+
+            try {
+                const response = await fetch("/api/submissions?" + params.toString());
+                if (!response.ok) throw new Error("HTTP " + response.status);
+                const submissions = await response.json();
+                renderSubmissions(submissions, listEl, countEl);
+            } catch (err) {
+                listEl.innerHTML = '<div id="error-state">Failed to load submissions: ' + escapeHtml(err.message) + "</div>";
+            }
+        }
+
+        function renderSubmissions(submissions, listEl, countEl) {
+            const n = submissions.length;
+            countEl.textContent = n + " submission" + (n !== 1 ? "s" : "");
+
+            if (n === 0) {
+                listEl.innerHTML = '<div id="empty-state"><p>No submissions found.</p><p>Try adjusting the filters or <a href="/">submit a blip</a>.</p></div>';
+                return;
+            }
+
+            listEl.innerHTML = submissions.map(function(s) {
+                const ringClass = RING_CLASSES[s.ring] || "ring-unknown";
+                const completeness = Math.round(s.completeness_score != null ? s.completeness_score : 0);
+                const quality = Math.round(s.quality_score != null ? s.quality_score : 0);
+                return [
+                    '<div class="blip-card">',
+                    '  <div class="blip-card-header">',
+                    '    <button class="blip-name" data-id="' + escapeHtml(s.id) + '">' + escapeHtml(s.name || "Unnamed") + "</button>",
+                    s.ring ? '    <span class="blip-ring ' + ringClass + '">' + escapeHtml(s.ring) + "</span>" : "",
+                    "  </div>",
+                    '  <div class="blip-meta">',
+                    s.quadrant ? "    <span>" + escapeHtml(s.quadrant) + "</span>" : "",
+                    s.submitter_name ? "    <span>by " + escapeHtml(s.submitter_name) + "</span>" : "",
+                    s.timestamp ? "    <span>" + formatDate(s.timestamp) + "</span>" : "",
+                    "  </div>",
+                    s.description ? '  <p class="blip-description">' + escapeHtml(s.description) + "</p>" : "",
+                    '  <div class="blip-scores">',
+                    "    <span>Completeness: <strong>" + completeness + "%</strong></span>",
+                    "    <span>Quality: <strong>" + quality + "%</strong></span>",
+                    "  </div>",
+                    "</div>",
+                ].join("\n");
+            }).join("\n");
+        }
+
+        async function openDetail(id) {
+            const overlay = document.getElementById("detail-overlay");
+            document.getElementById("detail-title").textContent = "Loading…";
+            document.getElementById("detail-badges").innerHTML = "";
+            document.getElementById("detail-meta").textContent = "";
+            document.getElementById("detail-body").innerHTML = "";
+            overlay.classList.add("open");
+
+            try {
+                const response = await fetch("/api/submissions/" + encodeURIComponent(id));
+                if (!response.ok) throw new Error("HTTP " + response.status);
+                renderDetail(await response.json());
+            } catch (err) {
+                document.getElementById("detail-title").textContent = "Error";
+                document.getElementById("detail-body").innerHTML =
+                    '<p style="color:var(--tw-flamingo)">Could not load submission: ' + escapeHtml(err.message) + "</p>";
+            }
+        }
+
+        function closeDetail() {
+            document.getElementById("detail-overlay").classList.remove("open");
+        }
+
+        function renderDetail(s) {
+            const ringClass = RING_CLASSES[s.ring] || "ring-unknown";
+
+            document.getElementById("detail-title").textContent = s.name || "Unnamed";
+
+            const badges = [];
+            if (s.ring) badges.push('<span class="blip-ring ' + ringClass + '">' + escapeHtml(s.ring) + "</span>");
+            if (s.quadrant) badges.push('<span class="blip-ring ring-unknown">' + escapeHtml(s.quadrant) + "</span>");
+            document.getElementById("detail-badges").innerHTML = badges.join("");
+
+            const metaParts = [];
+            if (s.submitter_name) metaParts.push("Submitted by " + s.submitter_name);
+            if (s.timestamp) metaParts.push(formatDate(s.timestamp));
+            document.getElementById("detail-meta").textContent = metaParts.join(" · ");
+
+            function section(title, content) {
+                if (!content) return "";
+                return '<div class="detail-section"><h3>' + title + "</h3>" + content + "</div>";
+            }
+
+            function listHtml(items) {
+                if (!items || !items.length) return null;
+                return "<ul>" + items.map(function(x) { return "<li>" + escapeHtml(x) + "</li>"; }).join("") + "</ul>";
+            }
+
+            const completeness = Math.round(s.completeness_score != null ? s.completeness_score : 0);
+            const quality = Math.round(s.quality_score != null ? s.quality_score : 0);
+
+            document.getElementById("detail-body").innerHTML = [
+                section("Description", s.description ? "<p>" + escapeHtml(s.description) + "</p>" : null),
+                section("Why Now", s.why_now ? "<p>" + escapeHtml(s.why_now) + "</p>" : null),
+                section("Client References", listHtml(s.client_references)),
+                section("Strengths", listHtml(s.strengths)),
+                section("Weaknesses", listHtml(s.weaknesses)),
+                section("Alternatives Considered", listHtml(s.alternatives_considered)),
+                s.is_resubmission ? section("Resubmission", "<p>" + escapeHtml(s.resubmission_rationale || "No rationale provided.") + "</p>") : "",
+                '<div class="detail-scores">',
+                "  <span>Completeness: <strong>" + completeness + "%</strong></span>",
+                "  <span>Quality: <strong>" + quality + "%</strong></span>",
+                "</div>",
+            ].filter(Boolean).join("\n");
+        }
+
+        // Open detail when clicking a blip name button
+        document.getElementById("submissions-list").addEventListener("click", function(e) {
+            const btn = e.target.closest(".blip-name");
+            if (btn) openDetail(btn.dataset.id);
+        });
+
+        // Close modal when clicking the backdrop
+        document.getElementById("detail-overlay").addEventListener("click", function(e) {
+            if (e.target === this) closeDetail();
+        });
+
+        // Close modal on Escape key
+        document.addEventListener("keydown", function(e) {
+            if (e.key === "Escape") closeDetail();
+        });
+
+        // Load on page open
+        loadSubmissions();
+    </script>
+</body>
+</html>

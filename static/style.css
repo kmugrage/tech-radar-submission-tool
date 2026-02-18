@@ -41,6 +41,34 @@ header h1 {
     font-weight: 700;
 }
 
+.page-nav {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.35rem;
+}
+
+header .page-nav a {
+    color: #fff !important;
+    text-decoration: none;
+    font-size: 0.78rem;
+    padding: 0.2rem 0.6rem;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 0.4rem;
+    transition: background 0.15s;
+    opacity: 0.75;
+}
+
+header .page-nav a:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+header .page-nav a.active {
+    background: var(--tw-flamingo);
+    border-color: var(--tw-flamingo);
+    opacity: 1;
+}
+
 main {
     display: flex;
     overflow: hidden;

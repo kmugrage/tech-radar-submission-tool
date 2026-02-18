@@ -7,7 +7,7 @@ import re
 import time
 from collections import OrderedDict
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
+from typing import AsyncIterator, Optional
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.responses import HTMLResponse
@@ -19,7 +19,7 @@ from app.conversation import ConversationSession
 from app.quality import calculate_scores, get_missing_fields, get_ring_gaps
 from app.radar_history import load_history
 from app.sanitization import sanitize_user_message, contains_injection_pattern
-from app.storage import save_submission
+from app.storage import save_submission, load_submissions
 
 if DEV_MODE:
     from app.mock_client import get_mock_response as get_claude_response
@@ -144,6 +144,62 @@ WELCOME_MESSAGE = (
 async def root() -> HTMLResponse:
     index = STATIC_DIR / "index.html"
     return HTMLResponse(index.read_text(encoding="utf-8"))
+
+
+@app.get("/submissions", response_class=HTMLResponse)
+async def submissions_page() -> HTMLResponse:
+    page = STATIC_DIR / "submissions.html"
+    return HTMLResponse(page.read_text(encoding="utf-8"))
+
+
+@app.get("/api/submissions/{submission_id}")
+async def get_submission(submission_id: str) -> dict:
+    """Return the full detail of a single submission by ID."""
+    records = load_submissions()
+    for record in records:
+        if record.get("id") == submission_id:
+            # Omit session_id and submitter_contact from detail view
+            detail_fields = {
+                "id", "timestamp", "name", "quadrant", "ring",
+                "submitter_name", "completeness_score", "quality_score",
+                "description", "why_now", "is_resubmission", "resubmission_rationale",
+                "client_references", "alternatives_considered", "strengths", "weaknesses",
+                "previous_appearances",
+            }
+            return {k: v for k, v in record.items() if k in detail_fields}
+    raise HTTPException(status_code=404, detail="Submission not found")
+
+
+@app.get("/api/submissions")
+async def list_submissions(
+    ring: Optional[str] = None,
+    quadrant: Optional[str] = None,
+    limit: int = 100,
+) -> list[dict]:
+    """Return a summary list of submitted blips, optionally filtered by ring or quadrant."""
+    if limit > 500:
+        limit = 500
+
+    records = load_submissions()
+
+    if ring:
+        records = [r for r in records if r.get("ring", "").lower() == ring.lower()]
+    if quadrant:
+        records = [r for r in records if r.get("quadrant", "").lower() == quadrant.lower()]
+
+    records.sort(key=lambda r: r.get("timestamp", ""), reverse=True)
+    records = records[:limit]
+
+    summary_fields = {"id", "timestamp", "name", "quadrant", "ring",
+                      "submitter_name", "completeness_score", "quality_score",
+                      "description"}
+    result = []
+    for r in records:
+        item = {k: v for k, v in r.items() if k in summary_fields}
+        if item.get("description") and len(item["description"]) > 200:
+            item["description"] = item["description"][:197] + "..."
+        result.append(item)
+    return result
 
 
 @app.websocket("/ws/{session_id}")
