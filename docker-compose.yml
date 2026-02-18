@@ -7,4 +7,5 @@ services:
       - .env
     volumes:
       # Persist submissions across restarts
-      - ./data/submissions.json:/app/data/submissions.json
+      # Mount the whole data/ directory so atomic rename (tmp.replace) works on Linux
+      - ./data:/app/data
